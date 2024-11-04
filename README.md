@@ -61,6 +61,7 @@ The default value is saved and should be loaded along when RVIZ is launch using 
 
 ![](docs/moveit_calibration_target.png)
 ![](docs/moveit_calibration_context.png)
+
 :warning: It is important to set the `Target` and `Context` tabs corectly. The camera pose initial guess may comes from the mount CAD value.
 
 ### 6. Run the calibration
@@ -77,7 +78,7 @@ This will also save a `calibration_pose.txt` in the directory supplied in the la
 
 After calibration poses is generated, the following service is called to send the robot to the generated poses. The robot will pause at each pose, press the `Take Sample` button from the RVIZ calibration GUI and press `enter` to send the robot to the next pose. 
 ```
-rosservice call /start_calibration "starting_index: 0
+rosservice call /start_calibration "starting_index: 0"
 ```
 Even if the calibration is interrupted, as long as the RVIZ node is kept alive, the calibration process will not be lost. The `starting_index` service parameter is used to skip forward to a specific calibration pose.
 
