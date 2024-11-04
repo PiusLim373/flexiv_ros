@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="flexiv_calibration" type="calib_pose_sender.py" name="calib_pose_sender" output="screen">
+    <rosparam file="$(find flexiv_calibration)/config/calib_joints.yaml" command="load"/>
+		<param name="calib_pose_path" value="$(find flexiv_calibration)/config/calibration_poses.txt"/>
+  </node>
+
+  <node pkg="flexiv_calibration" type="charuco_reader.py" name="charuco_reader" output="screen" />
+</launch>

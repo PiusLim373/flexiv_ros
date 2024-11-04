@@ -1,98 +1,87 @@
-# Flexiv ROS
+# Flexiv Calibration
+This repo is the source code to a auto calibration package that was created to automate the handeye calibration for the bin packing automation project.
 
-[![Industrial CI](https://github.com/flexivrobotics/flexiv_ros/actions/workflows/ci.yml/badge.svg)](https://github.com/flexivrobotics/flexiv_ros/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
-RDK APIs are wrapped into ROS packages in `flexiv_ros`. Key functionalities like real-time joint torque and position control, `ros_control` and MoveIt! integrations are implemented.
+Main Project: [Bin Packing Automation](https://github.com/PiusLim373/flexiv_bin_packing/tree/ros2_implementation)
 
 > [!IMPORTANT]
-> For new features and bug fixes, please migrate to ROS 2 and use the [Flexiv ROS 2 Humble](https://github.com/flexivrobotics/flexiv_ros2).
+> This repo will only focus on getting the calibration package up and running. For detail usage of Flexiv ROS Driver, please visit the original [Flexiv ROS](https://github.com/flexivrobotics/flexiv_ros) Repo.
 
-## References
 
-[Flexiv RDK main webpage](https://rdk.flexiv.com/) contains important information like RDK user manual and network setup.
+ The project is a collaboration project between Flexiv and NUS MSc in Robotics ME5400A and ME5400B module.
 
-## Compatibility
+## Setup
+### 1. Create workspace and clone necessary dependencies
+```
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
 
-| **Supported OS** | **Supported ROS distribution**         |
-| ---------------------- | -------------------------------------------- |
-| Ubuntu 20.04           | [Noetic Ninjemys](https://wiki.ros.org/noetic/) |
+# clone this forked repo
+git clone https://github.com/PiusLim373/flexiv_ros
 
-## Building
-
-```bash
-# install additional ROS packages
-$ sudo apt-get install ros-noetic-ros-control ros-noetic-ros-controllers
-
-# source ros noetic
-$ source /opt/ros/noetic/setup.bash
-
-# create a catkin workspace
-$ mkdir -p flexiv_ros_ws/src && cd flexiv_ros_ws
-
-# clone the packages
-$ git clone https://github.com/flexivrobotics/flexiv_ros.git src/flexiv_ros
-
-# update the rdk submodule
-$ cd src/flexiv_ros
-$ git submodule update --init --recursive
-
-# install dependencies
-$ cd flexiv_ros_ws
-$ sudo apt update -qq
-$ rosdep update
-$ rosdep install --from-paths src --ignore-src -y
-
-# build the workspace
-$ catkin_make
-
-# source the workspace
-$ source ~/flexiv_ros_ws/devel/setup.bash
+# clone the moveit-calibration package
+git clone git@github.com:moveit/moveit_calibration.git
 ```
 
-## Usage
+### 2. Build and Source the Environment
+```
+cd ~/catkin_ws
+catkin_make
 
-### Enable RDK on robot server
-
-In order to use ROS driver to control the robot, you need to enable RDK on the robot server. See the [RDK Getting Started guide](https://rdk.flexiv.com/manual/getting_started.html) for details.
-
-### Control the robot
-
-Make sure that the ROS packages are built successfully and you have sourced the workspace. It is highly recommended to use a direct wired connection between the robot and the workstation PC for real-time access to the robot. The workstation PC must be in the same subnet with the robot in order to connect.
-
-To start the robot driver run the following command in a terminal:
-
-```bash
-$ roslaunch flexiv_bringup rizon_control.launch robot_ip:=[robot_ip] local_ip:=[local_ip]
+source devel/setup.bash
 ```
 
-> [!NOTE]
-> Rizon 4 is the default robot type in the above launch command. If you want to control the Rizon 4s or Rizon 10, add the launch argument e.g. `rizon_type:=rizon4s`.
+## Running the Handeye Calibration
+### 1. Starting the hardwares driver
+```
+# Starting the Realsense Camera driver
+roslaunch realsense2_camera rs_camera.launch
 
-In another terminal, start the following launch file to run the rqt:
-
-```bash
-$ rosrun rqt_joint_trajectory_controller rqt_joint_trajectory_controller
+# Starting the Rizon 4s ROS driver and moveit commander
+# Change the robot type, robot ip and local ip based on your setup, 
+# use_rviz is set to false as we have a custom rviz config file
+roslaunch flexiv_moveit_config moveit_control.launch robot_ip:=192.168.3.100 local_ip:=192.168.3.101 rizon_type:=rizon4s use_rviz:=false use_rviz:=false
 ```
 
-You can use the rqt GUI to control the robot in joint space.
-
-### Using MoveIt!
-
-Launch the robot driver and the MoveIt! interface:
-
-```bash
-$ roslaunch flexiv_moveit_config moveit_control.launch robot_ip:=[robot_ip] local_ip:=[local_ip]
+### 2. Starting the calibration software
+This will launch a vision service that reads camera stream and output ChArUco pose, and the main calibration functions
+```
+roslaunch flexiv_calibration calib.launch
 ```
 
-You should get a RViZ window with the robot in the planning scene. You can use the `MotionPlanning` plugin in RViZ to control the robot.
+### 3. Start the RVIZ Visualizer
+```
+rviz -d $(roscd flexiv_calibration; pwd)/config/calib.rviz
+```
 
-### Robot States
+### 4. Prepare calibration board
+Print the `calibration_board.pdf` at actual size and place it somewhere where the camera can see it. The board should stay stationary throughout the calibration process.  
 
-The following ROS topics are published by the robot driver:
+### 5. Setting up moveit calibration RVIZ GUI
+The default value is saved and should be loaded along when RVIZ is launch using the previous command, but if this isnt loaded or changes is needed, you can adjust from the calibration GUI itself.
 
-- `/joint_states`: Joint states of the robot. [[`sensor_msgs/JointState.msg`](https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/JointState.html)]
-- `/external_wrench_in_tcp`: Estimated external wrench applied on TCP and expressed in TCP frame $^{TCP}F_{ext}$ in force $[N]$ and moment $[Nm]$. [[`geometry_msgs/Wrench.msg`](https://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Wrench.html)]
-- `/external_wrench_in_base`: Estimated external wrench applied on TCP and expressed in base frame $^{0}F_{ext}$ in force $[N]$ and moment $[Nm]$. [[`geometry_msgs/Wrench.msg`](https://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Wrench.html)]
-- `/wrench`: Force-torque (FT) sensor raw reading in flange frame $^{flange}F_{raw}$ in force $[N]$ and moment $[Nm]$. The value is 0 if no FT sensor is installed. [[`geometry_msgs/Wrench.msg`](https://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Wrench.html)]
-- `/tcp_pose`: Measured TCP pose in base frame $^{0}T_{TCP}$ in position $[m]$ and quaternion. [[`geometry_msgs/Pose.msg`](https://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Pose.html)]
+![](docs/moveit_calibration_target.png)
+![](docs/moveit_calibration_context.png)
+:warning: It is important to set the `Target` and `Context` tabs corectly. The camera pose initial guess may comes from the mount CAD value.
+
+### 6. Run the calibration
+To perform auto calibration, calibration pose needs to be generated first.
+```
+rosservice call /generate_calib_pose "{}"
+```
+A list of calibration poses will be generated, these poses are generated in a sphere profile, using the ChArUco pose detected as centriod. The profile can be futher tuned in `calib_pose_sender.py`.
+
+![](docs/calibration_poses.png)
+
+
+This will also save a `calibration_pose.txt` in the directory supplied in the launch file, for future usage.
+
+After calibration poses is generated, the following service is called to send the robot to the generated poses. The robot will pause at each pose, press the `Take Sample` button from the RVIZ calibration GUI and press `enter` to send the robot to the next pose. 
+```
+rosservice call /start_calibration "starting_index: 0
+```
+Even if the calibration is interrupted, as long as the RVIZ node is kept alive, the calibration process will not be lost. The `starting_index` service parameter is used to skip forward to a specific calibration pose.
+
+### 7. Done calibration
+It is recommended to take 20+ samples for the calibration to converge and accurate, using the `Solve` button will generate a 4x4 transformation matrix that represent the tf between flange and color_optical_frame. This matrix is then input to the `camera_tf_handler` in [Bin Packing Automation](https://github.com/PiusLim373/flexiv_bin_packing/tree/ros2_implementation).
+
+![](docs/calibration_result.png)
